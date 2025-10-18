@@ -93,6 +93,83 @@ def oversample_training(train_images, train_labels):
 
     return balanced_train_images, balanced_train_labels
 
+def get_data_loaders(images, labels, train_batch_size=32, test_val_batch_size=64):
+    """
+    Returns train, validation and testing dataloaders for the ISIC 2020 data set. Given
+    the images and labels for the ISIC 2020 data set.
+
+    All three sets will be normalised and converted to tensors and augmentation is applied to the train set.
+
+    Returns: train_loader, val_loader, test_loader
+    """
+    # Perform the data split
+    train_images, val_images, test_images, train_labels, val_labels, test_labels = split_train_val_test(images, labels)
+    # Perform the oversampling for train dataset
+    train_images, train_labels = oversample_training(train_images, train_labels)
+
+    train_transform = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.RandomRotation(degrees=10, fill=(255, 255, 255)),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomVerticalFlip(p=0.5),
+            transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.05),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225]
+            ),
+        ])
+    
+    val_transform = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225]
+            ),
+        ])
+    
+    test_transform = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225]
+            )
+        ])
+
+    # Train dataset
+    train_ds = TripletDataGenerator(
+        images=train_images,
+        labels=train_labels,
+        train=True,
+        transform=train_transform 
+    )
+
+    # Validation dataset
+    val_ds = TripletDataGenerator(
+        images=val_images,
+        labels=val_labels,
+        train=True,
+        transform=val_transform
+    )
+
+    # Testing dataset
+    test_ds = TripletDataGenerator(
+        images=test_images,
+        labels=test_labels,
+        train=False,
+        transform=test_transform
+        
+    )
+    
+    train_loader = DataLoader(train_ds, batch_size=train_batch_size, shuffle=True, num_workers=4)
+    val_loader = DataLoader(val_ds, batch_size=test_val_batch_size, shuffle=True, num_workers=4)
+    test_loader = DataLoader(test_ds, batch_size=test_val_batch_size, shuffle=True, num_workers=4)
+    return train_loader, val_loader, test_loader
+
+
+
 class TripletDataGenerator(torch.utils.data.Dataset):
     def __init__(self, images, labels=None, train=True, transform=None):
         self.is_train = train
