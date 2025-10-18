@@ -41,3 +41,45 @@ def get_data(metadata_path: str, image_dir: str) -> tuple[list]:
     labels = [image_to_label[os.path.basename(p)] for p in image_paths]
 
     return np.array(image_paths), np.array(labels)
+
+
+
+class TripletDataGenerator(torch.utils.data.Dataset):
+    def __init__(self, images, labels=None, train=True, transform=None):
+        self.is_train = train
+        self.transform = transform
+
+        self.images = images
+        self.labels = labels
+
+
+    def __len__(self):
+        return len(self.images)
+
+    def _read_rgb01(self, path: str) -> np.ndarray:
+        return cv2.imread(path) / 255.0
+
+    def __getitem__(self, anchor_idx):
+        anchor_img = self._read_rgb01(self.images[anchor_idx])
+        anchor_label = self.labels[anchor_idx]
+
+        if self.is_train:
+            positive_list = [idx for idx, label in enumerate(self.labels) if label == anchor_label and idx != anchor_idx]
+            positive_idx = random.choice(positive_list)
+            positive_img = self._read_rgb01(self.images[positive_idx])
+
+            negative_list = [idx for idx, label in enumerate(self.labels) if label != anchor_label and idx != anchor_idx]
+            negative_idx = random.choice(negative_list)
+            negative_img = self._read_rgb01(self.images[negative_idx])
+
+            if self.transform:
+                anchor_img = self.transform(anchor_img)
+                positive_img = self.transform(positive_img)
+                negative_img = self.transform(negative_img)
+
+            return anchor_img, positive_img, negative_img, anchor_label
+
+        else:
+            if self.transform:
+                anchor_img = self.transform(anchor_img)
+            return anchor_img, torch.empty(1), torch.empty(1), anchor_label
