@@ -79,3 +79,16 @@ class SiameseNetwork(nn.Module):
         """
         embedding = self.get_embedding(x)
         return self.classifier(embedding)
+    
+    
+def get_config() -> dict:
+    config = {
+        "metadata_path": "./data/train-metadata.csv",
+        "image_path": "./data/train-image/image/",
+        "train_batch_size": 32,
+        "test_val_batch_size": 64,
+        'embedding_dims': 128,
+        'learning_rate': 0.0001,
+        'epochs': 20,
+    }
+    return config
