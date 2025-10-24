@@ -85,11 +85,11 @@ def validate(model, val_loader, triplet_loss, classifier_loss, device, epoch_idx
 
             anchor_out, positive_out, negative_out = model(anchor, positive, negative)
             
-            triplet_loss_val = triplet_loss(anchor_out, positive_out, negative_out)
+            t_loss = triplet_loss(anchor_out, positive_out, negative_out)
             classifier_out = model.classify(anchor)
-            classifier_loss_val = classifier_loss(classifier_out, labels)
+            c_loss = classifier_loss(classifier_out, labels)
             
-            loss = triplet_loss_val + classifier_loss_val
+            loss = t_loss + c_loss
 
             running_loss.append(loss.item())
             
@@ -108,3 +108,41 @@ def validate(model, val_loader, triplet_loss, classifier_loss, device, epoch_idx
     final_acc = accuracy_score(all_labels, all_preds) if all_labels else 0.0
     auc_roc = roc_auc_score(all_labels, all_probs) if len(set(all_labels)) > 1 else float("nan")
     return avg_loss, final_acc, auc_roc
+
+def train_siamese_network(
+    train_loader: DataLoader,
+    val_loader: DataLoader,
+    model: SiameseNetwork,
+    optimizer: torch.optim.Optimizer,
+    scheduler: torch.optim.lr_scheduler,
+    triplet_loss: TripletLoss,
+    classifier_loss: nn.Module,
+    epochs: int,
+    device: str
+):
+    
+    train_loss_per_epoch, train_acc_per_epoch, train_auc_per_epoch = [], [], []
+    val_loss_per_epoch, val_acc_per_epoch, val_auc_per_epoch = [], [], []
+    
+    for epoch in range(epochs):
+
+        # Train the model for one epoch
+        train_loss, train_acc, train_auc = train_epoch(model, train_loader, triplet_loss, classifier_loss, optimizer, device, epoch)
+        
+        # Validate the model
+        val_loss, val_acc, val_auc = validate(model, val_loader, triplet_loss, classifier_loss, device, epoch)
+        
+        # Store metrics
+        train_loss_per_epoch.append(train_loss)
+        train_acc_per_epoch.append(train_acc)
+        train_auc_per_epoch.append(train_auc)
+        
+        val_loss_per_epoch.append(val_loss)
+        val_acc_per_epoch.append(val_acc)
+        val_auc_per_epoch.append(val_auc)
+        
+
+        # Adjust learning rate based on validation AUC-ROC
+        scheduler.step(val_auc)
+        
+    return train_loss_per_epoch, train_acc_per_epoch, train_auc_per_epoch, val_loss_per_epoch, val_acc_per_epoch, val_auc_per_epoch
