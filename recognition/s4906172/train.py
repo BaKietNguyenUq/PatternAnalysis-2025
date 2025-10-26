@@ -181,3 +181,59 @@ def plot_training_graphs(
     _plot_and_save(train_aucroc_per_epoch, val_aucroc_per_epoch, "AUROC over Epochs", "AUROC", f"{out_prefix}_auroc.png")
 
     return saved
+
+def main():
+    # Determine device that we are training on
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Get the current config
+    config = get_config()
+    
+    # Extract the data from the given locations
+    images, labels = get_data(
+        metadata_path=config["metadata_path"],
+        image_dir=config["image_path"]
+    )
+    
+    # Get the data loaders
+    train_loader, val_loader, test_loader = get_data_loaders(
+        images=images,
+        labels=labels,
+        train_batch_size=config["train_batch_size"],
+        test_val_batch_size=config["test_val_batch_size"]
+    )
+    
+    # Initalise Model
+    model = SiameseNetwork(config["embedding_dims"]).to(device)
+
+    # Initialise loss functions
+    triplet_loss = TripletLoss().to(device)
+    classifier_loss = nn.CrossEntropyLoss(label_smoothing=0.1).to(device)
+
+    # Initialise Optimiser and Scheduler
+    optimizer = optim.Adam(model.parameters(), lr=config['learning_rate'])
+    scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=5)
+    
+    train_loss_per_epoch, train_acc_per_epoch, train_auc_per_epoch, val_loss_per_epoch, val_acc_per_epoch, val_auc_per_epoch = train_siamese_network(
+        train_loader,
+        val_loader,
+        model,
+        optimizer,
+        scheduler,
+        triplet_loss,
+        classifier_loss,
+        config["epochs"],
+        device
+    )
+    
+    plot_training_graphs(
+        train_loss_per_epoch=train_loss_per_epoch,
+        val_loss_per_epoch=val_loss_per_epoch,
+        train_acc_per_epoch=train_acc_per_epoch,
+        val_acc_per_epoch=val_acc_per_epoch,
+        train_aucroc_per_epoch=train_auc_per_epoch,
+        val_aucroc_per_epoch=val_auc_per_epoch,
+        epochs=config["epochs"],
+    )
+    
+    results_siamese_network(test_loader, model, device)
