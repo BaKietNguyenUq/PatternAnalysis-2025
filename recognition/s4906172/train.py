@@ -146,3 +146,38 @@ def train_siamese_network(
         scheduler.step(val_auc)
         
     return train_loss_per_epoch, train_acc_per_epoch, train_auc_per_epoch, val_loss_per_epoch, val_acc_per_epoch, val_auc_per_epoch
+
+def plot_training_graphs(
+    train_loss_per_epoch,
+    val_loss_per_epoch,
+    train_acc_per_epoch,
+    val_acc_per_epoch,
+    train_aucroc_per_epoch,
+    val_aucroc_per_epoch,
+    epochs: int,
+    out_prefix: str = "train_val_progress"
+) -> dict:
+    """
+    Plot train and validation metrics across epochs and save separate figures
+    Returns dict of saved file paths
+    """
+    saved = {}
+
+    def _plot_and_save(y_tr, y_val, title, ylabel, fname):
+        plt.figure(figsize=(7, 5))
+        plt.plot(range(1, len(y_tr)+1), y_tr, label="Train")
+        plt.plot(range(1, len(y_val)+1), y_val, label="Validation")
+        plt.title(title)
+        plt.xlabel("Epoch")
+        plt.ylabel(ylabel)
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        plt.savefig(fname, bbox_inches="tight", dpi=150)
+        plt.close()
+        saved[title] = fname
+
+    _plot_and_save(train_loss_per_epoch, val_loss_per_epoch, "Loss over Epochs", "Loss", f"{out_prefix}_loss.png")
+    _plot_and_save(train_acc_per_epoch,  val_acc_per_epoch,  "Accuracy over Epochs", "Accuracy", f"{out_prefix}_accuracy.png")
+    _plot_and_save(train_aucroc_per_epoch, val_aucroc_per_epoch, "AUROC over Epochs", "AUROC", f"{out_prefix}_auroc.png")
+
+    return saved
