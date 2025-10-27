@@ -9,8 +9,7 @@ from torchvision import transforms
 from sklearn.model_selection import train_test_split
 
 
-
-def get_data(metadata_path: str, image_dir: str) -> tuple[list]:
+def get_data_path(metadata_path: str, image_dir: str) -> tuple[list]:
     """
     Load ISIC 2020 image paths and labels from metadata and an image folder
 
@@ -27,7 +26,7 @@ def get_data(metadata_path: str, image_dir: str) -> tuple[list]:
     # Build expected filename for each image in metadata
     metadata['image_file'] = metadata['isic_id'] + '.jpg'
 
-    # Map filename to label for quick lookup
+    # Map filename to label 
     image_to_label = dict(zip(metadata['image_file'], metadata['target']))
 
     # Keep only files that both exist in the folder and appear in metadata
@@ -59,7 +58,7 @@ def split_train_val_test(images: list, labels: list):
 def oversample_training(train_images, train_labels):
     """
     Oversampling will be performed on the training set to ensure equal number of
-    samples for each class.
+    samples for each class
 
     Returns: balanced_train_images, balanced_train_labels
     """
@@ -70,7 +69,7 @@ def oversample_training(train_images, train_labels):
     class_0_labels = train_labels[train_labels == 0]
     class_1_labels = train_labels[train_labels == 1]
 
-    # Number of samples to match class 0
+    # Number of samples to match the larger class
     num_class_0 = len(class_0_images)
     num_class_1 = len(class_1_images)
 
@@ -86,8 +85,20 @@ def oversample_training(train_images, train_labels):
         # Combine original class 1 images with the oversampled ones
         class_1_images = np.concatenate([class_1_images, oversampled_class_1_images], axis=0)
         class_1_labels = np.concatenate([class_1_labels, oversampled_class_1_labels], axis=0)
-
-    # Concatenate class 0 and the new class 1 images to get the final balanced dataset
+    elif num_class_1 > num_class_0:
+        # oversample class 0
+        # Randomly choose from class_0_images to oversample it
+        oversample_indices = np.random.choice(
+            np.arange(num_class_0), size=num_class_1 - num_class_0, replace=True
+        )
+        oversampled_class_0_images = class_0_images[oversample_indices]
+        oversampled_class_0_labels = class_0_labels[oversample_indices]
+        
+        # Combine original class 0 images with the oversampled ones
+        class_0_images = np.concatenate([class_0_images, oversampled_class_0_images], axis=0)
+        class_0_labels = np.concatenate([class_0_labels, oversampled_class_0_labels], axis=0)
+    
+    # Concatenate class 0 and the class 1 images to get the final balanced dataset
     balanced_train_images = np.concatenate([class_0_images, class_1_images], axis=0)
     balanced_train_labels = np.concatenate([class_0_labels, class_1_labels], axis=0)
 
@@ -108,35 +119,31 @@ def get_data_loaders(images, labels, train_batch_size=32, test_val_batch_size=64
     train_images, train_labels = oversample_training(train_images, train_labels)
 
     train_transform = transforms.Compose([
-            transforms.ToPILImage(),
-            transforms.RandomRotation(degrees=10, fill=(255, 255, 255)),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomVerticalFlip(p=0.5),
-            transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.05),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225]
-            ),
-        ])
-    
+        transforms.RandomCrop(size=(224, 224)),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
+        transforms.RandomRotation(10),
+        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                            std=[0.229, 0.224, 0.225]),
+    ])
+
     val_transform = transforms.Compose([
-            transforms.ToPILImage(),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225]
-            ),
-        ])
-    
+        transforms.ToTensor(),
+        transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225]
+        ),
+    ])
+
     test_transform = transforms.Compose([
-            transforms.ToPILImage(),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225]
-            )
-        ])
+        transforms.ToTensor(),
+        transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225]
+        )
+    ])
 
     # Train dataset
     train_ds = TripletDataGenerator(
@@ -171,7 +178,19 @@ def get_data_loaders(images, labels, train_batch_size=32, test_val_batch_size=64
 
 
 class TripletDataGenerator(torch.utils.data.Dataset):
+    """
+    PyTorch Dataset that yields triplets (anchor, positive, negative) for training with Triplet Loss
+    - In training mode, each __getitem__ returns three transformed images and the anchor label
+    - In eval mode, it returns only the transformed anchor image plus empty tensors for positive/negative and the label
+    """
     def __init__(self, images, labels=None, train=True, transform=None):
+        """
+        Args:
+            images: list/array of image file paths for anchors, positives, and negatives
+            labels: list/array of class labels aligned with images
+            train: if True, generate triplets; if False, return anchor-only samples
+            transform: callable transform applied to each image
+        """
         self.is_train = train
         self.transform = transform
 
@@ -179,12 +198,27 @@ class TripletDataGenerator(torch.utils.data.Dataset):
         self.labels = labels
 
     def __len__(self):
+        """
+        Return the number of images available for sampling
+        """
         return len(self.images)
 
     def _read_rgb01(self, path: str) -> np.ndarray:
+        """
+        Read an image from disk and return it as float32 in [0, 1] range in BGR order as read by OpenCV
+        Note: cv2.imread reads BGR; convert to RGB if your transform/model expects RGB
+        """
         return cv2.imread(path) / 255.0
 
-    def __getitem__(self, anchor_index):
+    def __getitem__(self, anchor_index) -> tuple[torch.tensor, torch.tensor, torch.tensor, int]:
+        """
+        Get a triplet (anchor, positive, negative) and the anchor label for training
+        or a single anchor image with dummy tensors when not training
+        
+        Args: anchor_index (int): index of the anchor image
+        
+        Returns: anchor_img, positive_img, negative_img, anchor_label
+        """
         anchor_img = self._read_rgb01(self.images[anchor_index])
         anchor_label = self.labels[anchor_index]
 
