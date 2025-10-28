@@ -13,45 +13,95 @@ import seaborn as sns
 from tqdm import tqdm
 import logging
 from torch.utils.data import DataLoader
+from typing import Tuple
 
-from dataset import get_data_path, get_data_loaders
+from dataset import get_data_loaders
 from modules import TripletLoss, SiameseNetwork, get_config
 from predict import results_siamese_network
 
 
-def train_epoch(model, train_loader, triplet_loss, classifier_loss, optimizer, device, epoch_idx):
+def train_epoch(
+    model : nn.Module, 
+    train_loader, 
+    triplet_loss: nn.Module, 
+    classifier_loss: nn.Module, 
+    optimizer: torch.optim.Optimizer, 
+    device: str | torch.device, 
+    scaler: torch.cuda.amp.GradScaler, 
+    epoch_idx: int
+) -> Tuple[float, float, float]:
+    """
+    One full training epoch for a Siamese/Triplet model.
+
+    Runs mixed-precision forward/backward, computes Triplet loss + classifier loss,
+    applies gradient scaling & clipping, and tracks running metrics.
+
+    Args:
+        model (nn.Module): The Siamese Network model.
+        train_loader (DataLoader): DataLoader for the training data.
+        triplet_loss (nn.Module): The triplet loss function.
+        classifier_loss (nn.Module): The classifier loss function.
+        optimizer (torch.optim.Optimizer): optimizer for model parameters.
+        device (str | torch.device): training device.
+        scaler (torch.cuda.amp.GradScaler): gradient scaler for AMP.
+        epoch_idx (int): current epoch index.
+
+    Returns:
+        tuple[float, float, float]:
+            - avg_loss: mean total loss over the epoch
+            - final_acc: accuracy computed over all seen samples
+            - auc_roc: ROC-AUC over all seen samples
+    """
+    
     model.train()
     running_loss, all_labels, all_probs, all_preds = [], [], [], []
 
     for batch_idx, (anchor, positive, negative, labels) in enumerate(train_loader):
+        # Move to device
         anchor, positive, negative, labels = (
             anchor.to(device), positive.to(device), negative.to(device), labels.to(device)
         )
 
         optimizer.zero_grad()
-        anchor_out, positive_out, negative_out = model(anchor, positive, negative)
-        t_loss = triplet_loss(anchor_out, positive_out, negative_out)
 
-        logits = model.classify(anchor)
-        c_loss = classifier_loss(logits, labels)
+        with autocast(device_type='cuda'):
+            # Embeddings for triplet loss
+            anchor_out, positive_out, negative_out = model(anchor, positive, negative)
+            # Triplet loss
+            t_loss = triplet_loss(anchor_out, positive_out, negative_out)
 
-        loss = t_loss + c_loss
-        loss.backward()
-        optimizer.step()
+            # Logits for classification loss 
+            logits = model.classify(anchor)
+            c_loss = classifier_loss(logits, labels)
+
+            # Total loss 
+            loss = t_loss + c_loss
+
+        # Backward pass with gradient scaling
+        scaler.scale(loss).backward()
+        scaler.unscale_(optimizer)
+
+        # Gradient clipping to improve stability
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+
+        # Optimizer step
+        scaler.step(optimizer)
+        scaler.update()
 
         running_loss.append(loss.item())
+        # Convert logits to class probabilities along the class dimension and take the prob of class 1 
         probs = torch.softmax(logits, dim=1)[:, 1]
+        # Predict class index for each sample
         preds = logits.argmax(dim=1)
 
         all_labels.extend(labels.tolist())
         all_probs.extend(probs.detach().cpu().numpy())
         all_preds.extend(preds.detach().cpu().numpy())
-        
+
         running_acc = accuracy_score(all_labels, all_preds)
-        if (batch_idx + 1) % 10 == 0:   # adjust frequency as you like
+        if (batch_idx + 1) % 100 == 0:   # adjust frequency as you like
             print(f"Epoch [{epoch_idx}] Step [{batch_idx+1}/{len(train_loader)}] Acc [{running_acc}]")
 
-        
 
     avg_loss = float(np.mean(running_loss))
     final_acc = accuracy_score(all_labels, all_preds)
@@ -59,7 +109,14 @@ def train_epoch(model, train_loader, triplet_loss, classifier_loss, optimizer, d
     return avg_loss, final_acc, auc_roc
 
 
-def validate(model, val_loader, triplet_loss, classifier_loss, device, epoch_idx):
+def validate(
+    model: nn.Module,
+    val_loader: DataLoader,
+    triplet_loss: nn.Module,
+    classifier_loss: nn.Module,
+    device: torch.device | str,
+    epoch_idx: int,
+) -> Tuple[float, float, float]:
     """
     Validate the model on the validation set.
 
@@ -83,17 +140,24 @@ def validate(model, val_loader, triplet_loss, classifier_loss, device, epoch_idx
                 anchor.to(device), positive.to(device), negative.to(device), labels.to(device)
             )
 
+            # Embeddings for triplet loss
             anchor_out, positive_out, negative_out = model(anchor, positive, negative)
             
+            # Triplet loss
             t_loss = triplet_loss(anchor_out, positive_out, negative_out)
+            
+            # Logits for classification loss
             classifier_out = model.classify(anchor)
             c_loss = classifier_loss(classifier_out, labels)
             
+            # Total loss
             loss = t_loss + c_loss
 
             running_loss.append(loss.item())
             
+            # Convert logits to class probabilities along the class dimension and take the prob of class 1 
             probs = torch.softmax(classifier_out, dim=1)[:, 1]
+            # Predict class index for each sample
             _, preds = classifier_out.max(1)
             
             all_labels.extend(labels.cpu().numpy())
@@ -101,7 +165,7 @@ def validate(model, val_loader, triplet_loss, classifier_loss, device, epoch_idx
             all_preds.extend(preds.cpu().numpy())
 
             running_acc = accuracy_score(all_labels, all_preds)
-            if (batch_idx + 1) % 1 == 0:   # adjust frequency as you like
+            if (batch_idx + 1) % 70 == 0:   # adjust frequency as you like
                 print(f"Epoch [{epoch_idx}] Step [{batch_idx+1}/{len(val_loader)}] Acc [{running_acc}]")
 
     avg_loss = float(np.mean(running_loss)) if running_loss else 0.0
@@ -118,16 +182,46 @@ def train_siamese_network(
     triplet_loss: TripletLoss,
     classifier_loss: nn.Module,
     epochs: int,
+    scaler,
     device: str
 ):
+    
+    """
+    Train a Siamese/Triplet network.
+    Runs for the specified number of epochs, performing:
+      - Train the model on the training dataset .
+      - Validate model on the validation dataset.
+      - Learning rate scheduling based on validation AUC-ROC
+    Returns metric of training and validation dataset.
+     
+
+    Args:
+        train_loader (DataLoader): DataLoader for the training data.
+        val_loader (DataLoader): DataLoader for the validation data.
+        model (SiameseNetwork): The Siamese Network model.
+        optimizer (torch.optim.Optimizer): optimizer for model parameters.
+        scheduler (torch.optim.lr_scheduler._LRScheduler | ReduceLROnPlateau): LR scheduler stepped with val AUC.
+        triplet_loss (TripletLoss): The triplet loss function.
+        classifier_loss (nn.Module): The classifier loss function.
+        epochs (int): number of training epochs.
+        scaler: AMP gradient scaler for mixed precision training.
+        device (str): compute device.
+
+    Returns:
+        tuple[list[float], list[float], list[float], list[float], list[float], list[float]]:
+            (train_loss_per_epoch, train_acc_per_epoch, train_auc_per_epoch,
+             val_loss_per_epoch, val_acc_per_epoch, val_auc_per_epoch)
+    """
     
     train_loss_per_epoch, train_acc_per_epoch, train_auc_per_epoch = [], [], []
     val_loss_per_epoch, val_acc_per_epoch, val_auc_per_epoch = [], [], []
     
+    best_val_auc = 0
+    
     for epoch in range(epochs):
 
         # Train the model for one epoch
-        train_loss, train_acc, train_auc = train_epoch(model, train_loader, triplet_loss, classifier_loss, optimizer, device, epoch)
+        train_loss, train_acc, train_auc = train_epoch(model, train_loader, triplet_loss, classifier_loss, optimizer, device, scaler, epoch)
         
         # Validate the model
         val_loss, val_acc, val_auc = validate(model, val_loader, triplet_loss, classifier_loss, device, epoch)
@@ -136,24 +230,27 @@ def train_siamese_network(
         train_loss_per_epoch.append(train_loss)
         train_acc_per_epoch.append(train_acc)
         train_auc_per_epoch.append(train_auc)
-        
         val_loss_per_epoch.append(val_loss)
         val_acc_per_epoch.append(val_acc)
         val_auc_per_epoch.append(val_auc)
         
-
         # Adjust learning rate based on validation AUC-ROC
         scheduler.step(val_auc)
+        
+        # Save the model if it preforms better than all other epochs on validation set
+        if val_auc > best_val_auc:
+            torch.save(model.state_dict(), "siamese_net_model.pt")
+            best_val_auc = val_auc
         
     return train_loss_per_epoch, train_acc_per_epoch, train_auc_per_epoch, val_loss_per_epoch, val_acc_per_epoch, val_auc_per_epoch
 
 def plot_training_graphs(
-    train_loss_per_epoch,
-    val_loss_per_epoch,
-    train_acc_per_epoch,
-    val_acc_per_epoch,
-    train_aucroc_per_epoch,
-    val_aucroc_per_epoch,
+    train_loss_per_epoch: list[float],
+    val_loss_per_epoch: list[float],
+    train_acc_per_epoch: list[float],
+    val_acc_per_epoch: list[float],
+    train_aucroc_per_epoch: list[float],
+    val_aucroc_per_epoch: list[float],
     epochs: int,
     out_prefix: str = "train_val_progress"
 ) -> dict:
@@ -182,23 +279,15 @@ def plot_training_graphs(
 
     return saved
 
-def main():
+def main() -> None:
     # Determine device that we are training on
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Get the current config
     config = get_config()
     
-    # Extract the data from the given locations
-    images, labels = get_data_path(
-        metadata_path=config["metadata_path"],
-        image_dir=config["image_path"]
-    )
-    
     # Get the data loaders
     train_loader, val_loader, test_loader = get_data_loaders(
-        images=images,
-        labels=labels,
         train_batch_size=config["train_batch_size"],
         test_val_batch_size=config["test_val_batch_size"]
     )
@@ -213,7 +302,9 @@ def main():
     # Initialise Optimiser and Scheduler
     optimizer = optim.Adam(model.parameters(), lr=config['learning_rate'])
     scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=5)
+    scaler = GradScaler()
     
+    # Train the model
     train_loss_per_epoch, train_acc_per_epoch, train_auc_per_epoch, val_loss_per_epoch, val_acc_per_epoch, val_auc_per_epoch = train_siamese_network(
         train_loader,
         val_loader,
@@ -223,9 +314,11 @@ def main():
         triplet_loss,
         classifier_loss,
         config["epochs"],
+        scaler,
         device
     )
     
+    # Plot train and validation metrics
     plot_training_graphs(
         train_loss_per_epoch=train_loss_per_epoch,
         val_loss_per_epoch=val_loss_per_epoch,
