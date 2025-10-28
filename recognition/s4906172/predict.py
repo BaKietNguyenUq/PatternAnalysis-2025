@@ -38,7 +38,7 @@ def plot_tsne_from_embeddings(
     embeddings, 
     out_path="testing_tsne_embeddings.png", 
     title="t-SNE visualization of embeddings"
-):
+) -> None:
     """
     Compute 2D t-SNE from embeddings and save a scatter plot
     Only embeddings are required
@@ -66,7 +66,7 @@ def plot_confusion_matrix(
     test_y_pred,
     out_path="testing_confusion_matrix.png", 
     title="Confusion Matrix (Percentages)" 
-):
+) -> None:
     # Calculate the confusion matrix
     conf_matrix = confusion_matrix(test_y_true, test_y_pred)
     
@@ -118,3 +118,43 @@ def plot_roc_curve(
     plt.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close()
     return out_path
+
+def test_siamese_network(
+    test_loader: DataLoader,
+    model: SiameseNetwork,
+    device: str
+):
+    model.eval() 
+    all_labels, all_probs, all_preds, all_embeddings = [], [], [], []
+
+    with torch.no_grad():
+        for batch_idx, (anchor, _, _, labels) in enumerate(test_loader):
+            # Move data to the specified device for faster computation
+            anchor = anchor.to(device).float()
+            
+            embeddings = model.get_embedding(anchor)
+            classifier_out = model.classify(anchor) 
+                       
+            probs = torch.softmax(classifier_out, dim=1)[:, 1]
+            _, preds = classifier_out.max(1)
+            
+            all_labels.extend(labels.cpu().numpy())
+            all_probs.extend(probs.cpu().numpy())
+            all_preds.extend(preds.cpu().numpy())
+            all_embeddings.append(embeddings.cpu().numpy())
+    
+    return np.array(all_preds), np.array(all_probs), np.array(all_labels), np.concatenate(all_embeddings)
+
+def results_siamese_network(
+    test_loader: DataLoader,
+    model: SiameseNetwork,
+    device: str
+):
+    test_y_pred, test_y_probs, test_y_true, test_embeddings = test_siamese_network(test_loader=test_loader, model=model, device=device)
+    
+    produce_evaluation_metrics(test_y_pred, test_y_probs, test_y_true)
+    plot_confusion_matrix(test_y_true, test_y_pred)
+    plot_tsne_from_embeddings(test_embeddings)
+    plot_roc_curve(test_y_true, test_y_probs)
+    
+    
