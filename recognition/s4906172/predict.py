@@ -59,3 +59,62 @@ def plot_tsne_from_embeddings(
     plt.tight_layout()
     plt.savefig(out_path)
     plt.close()
+    
+    
+def plot_confusion_matrix(
+    test_y_true,
+    test_y_pred,
+    out_path="testing_confusion_matrix.png", 
+    title="Confusion Matrix (Percentages)" 
+):
+    # Calculate the confusion matrix
+    conf_matrix = confusion_matrix(test_y_true, test_y_pred)
+    
+    # Normalize the confusion matrix by rows (i.e., by the actual class counts)
+    conf_matrix_normalized = conf_matrix.astype('float') / conf_matrix.sum(axis=1)[:, np.newaxis]
+
+    # Plot the normalized confusion matrix
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(
+        conf_matrix_normalized,
+        annot=True,
+        fmt='.2%',
+        cmap='Greens', 
+        xticklabels=['Normal (0)', 'Melanoma (1)'],
+        yticklabels=['Normal (0)', 'Melanoma (1)']
+    )
+    plt.title(title)
+    plt.ylabel('Actual Labels')
+    plt.xlabel('Predicted Labels')
+    plt.savefig(out_path)
+    plt.close()
+
+def plot_roc_curve(
+    test_y_true, 
+    test_y_probs,
+    out_path="roc_curve.png", 
+    title="ROC Curve"
+):
+    y_true = np.asarray(test_y_true)
+    y_prob = np.asarray(test_y_probs, dtype=float)
+
+    # Need both classes present to compute ROC
+    if np.unique(y_true).size < 2:
+        print("[plot_roc_curve] Only one class present in y_true; skipping ROC.")
+        return None
+
+    fpr, tpr, _ = roc_curve(y_true, y_prob)
+
+    plt.figure(figsize=(8, 6))
+    plt.plot(fpr, tpr, label="ROC curve")
+    plt.plot([0, 1], [0, 1], linestyle="--")
+    plt.xlim([0.0, 1.0]); plt.ylim([0.0, 1.0])
+    plt.xlabel("False Positive Rate (FPR)")
+    plt.ylabel("True Positive Rate (TPR)")
+    plt.title(title)
+    plt.legend(loc="lower right")
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    return out_path

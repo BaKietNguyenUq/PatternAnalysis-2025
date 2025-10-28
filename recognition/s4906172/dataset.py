@@ -106,18 +106,24 @@ def oversample_training(train_images, train_labels):
 
 def get_data_loaders(images, labels, train_batch_size=32, test_val_batch_size=64):
     """
-    Returns train, validation and testing dataloaders for the ISIC 2020 data set. Given
-    the images and labels for the ISIC 2020 data set.
+    Build train, validation, and test DataLoaders for ISIC 2020 from image paths and labels
+    All splits are converted to tensors and normalized, with data augmentation applied only to the training split
 
-    All three sets will be normalised and converted to tensors and augmentation is applied to the train set.
+    Args:
+        images: file paths to images
+        labels: class labels aligned with images
+        train_batch_size: batch size for the training loader
+        test_val_batch_size: batch size for validation and test loaders
 
-    Returns: train_loader, val_loader, test_loader
+    Returns: tuple: (train_loader, val_loader, test_loader)
     """
-    # Perform the data split
+    
+    # Data split
     train_images, val_images, test_images, train_labels, val_labels, test_labels = split_train_val_test(images, labels)
-    # Perform the oversampling for train dataset
+    # Oversampling for train dataset
     train_images, train_labels = oversample_training(train_images, train_labels)
 
+    # Train dataset transform
     train_transform = transforms.Compose([
         transforms.RandomCrop(size=(224, 224)),
         transforms.RandomHorizontalFlip(),
@@ -129,6 +135,7 @@ def get_data_loaders(images, labels, train_batch_size=32, test_val_batch_size=64
                             std=[0.229, 0.224, 0.225]),
     ])
 
+    # Validate dataset transform
     val_transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize(
@@ -137,6 +144,7 @@ def get_data_loaders(images, labels, train_batch_size=32, test_val_batch_size=64
         ),
     ])
 
+    # Test dataset transform
     test_transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize(

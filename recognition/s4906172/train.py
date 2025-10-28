@@ -14,7 +14,7 @@ from tqdm import tqdm
 import logging
 from torch.utils.data import DataLoader
 
-from dataset import get_data, get_data_loaders
+from dataset import get_data_path, get_data_loaders
 from modules import TripletLoss, SiameseNetwork, get_config
 from predict import results_siamese_network
 
@@ -190,7 +190,7 @@ def main():
     config = get_config()
     
     # Extract the data from the given locations
-    images, labels = get_data(
+    images, labels = get_data_path(
         metadata_path=config["metadata_path"],
         image_dir=config["image_path"]
     )

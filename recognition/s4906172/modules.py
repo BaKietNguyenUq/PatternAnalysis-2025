@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torchvision import models
 
 class SiameseNetwork(nn.Module):
-    def __init__(self, embedding_dim=128):
+    def __init__(self, embedding_dim=256):
         super(SiameseNetwork, self).__init__()
 
         resnet50 = models.resnet50()
@@ -104,8 +104,8 @@ def get_config() -> dict:
         "image_path": "./data/train-image/image/",
         "train_batch_size": 32,
         "test_val_batch_size": 64,
-        'embedding_dims': 128,
-        'learning_rate': 0.0001,
-        'epochs': 20,
+        "embedding_dims": 256,
+        "learning_rate": 0.001,
+        "epochs": 25,
     }
     return config
