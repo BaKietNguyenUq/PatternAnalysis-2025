@@ -1,3 +1,10 @@
+"""
+train.py
+
+Training loop and utilities for a Siamese network on ISIC 2020
+Includes train/validate functions, metric plotting and the main entrypoint
+"""
+
 import os
 import torch
 import torch.nn as nn
@@ -237,7 +244,7 @@ def train_siamese_network(
         # Adjust learning rate based on validation AUC-ROC
         scheduler.step(val_auc)
         
-        # Save the model if it preforms better than all other epochs on validation set
+        # Save the model if it performs with better auc roc score on validation set
         if val_auc > best_val_auc:
             torch.save(model.state_dict(), "siamese_net_model.pt")
             best_val_auc = val_auc
@@ -251,7 +258,6 @@ def plot_training_graphs(
     val_acc_per_epoch: list[float],
     train_aucroc_per_epoch: list[float],
     val_aucroc_per_epoch: list[float],
-    epochs: int,
     out_prefix: str = "train_val_progress"
 ) -> dict:
     """
@@ -326,7 +332,7 @@ def main() -> None:
         val_acc_per_epoch=val_acc_per_epoch,
         train_aucroc_per_epoch=train_auc_per_epoch,
         val_aucroc_per_epoch=val_auc_per_epoch,
-        epochs=config["epochs"],
     )
     
+    # Test the model with test dataset
     results_siamese_network(test_loader, model, device)

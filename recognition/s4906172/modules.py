@@ -1,18 +1,29 @@
+"""
+modules.py
+
+Defines the Siamese network, Triplet loss, and config for data paths and training hyperparameters
+for skin lesion classification with ISIC 2020
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import models
 
 class SiameseNetwork(nn.Module):
+    """
+    Siamese network with a ResNet-50 backbone and MLP head to produce fixed-dimensional embeddings
+    Also exposes a linear classifier on top of the embedding for supervised training or evaluation
+    Args: embedding_dim (int): size of the output embedding vector
+    """
     def __init__(self, embedding_dim=256):
         super(SiameseNetwork, self).__init__()
 
-        resnet50 = models.resnet50()
-        
+        # Pretrained ResNet-50 as feature extractor (all conv layers up to global pooling)
+        resnet50 = models.resnet50(weights='ResNet50_Weights.DEFAULT')
         self.feature_extractor = nn.Sequential(*list(resnet50.children())[:-1])
         
-        
-        # ResNet50 output features
+        # ResNet-50 produces 2048-D pooled features
         resnet_output_features = 2048
         
         # Fully connected layers
@@ -32,20 +43,19 @@ class SiameseNetwork(nn.Module):
             nn.Linear(256, embedding_dim)
         )
         
-        # Classifier
+        # Classifier head for 2 classes
         self.classifier = nn.Linear(embedding_dim, 2)
         
     def forward(self, x1, x2, x3):
         """
-        Forward pass for triplet input (anchor, positive, negative).
-
+        Forward pass for a triplet: anchor, positive, negative
         Args:
-            x1 (torch.Tensor): Anchor image tensor.
-            x2 (torch.Tensor): Positive image tensor.
-            x3 (torch.Tensor): Negative image tensor.
-
+            x1 (torch.Tensor): anchor batch tensor of shape (B, C, H, W)
+            x2 (torch.Tensor): positive batch tensor of shape (B, C, H, W)
+            x3 (torch.Tensor): negative batch tensor of shape (B, C, H, W)
         Returns:
-            tuple: Tuple containing embeddings for anchor, positive, and negative images.
+            tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+            embeddings for (anchor, positive, negative), each of shape (B, embedding_dim)
         """
         out1 = self.get_embedding(x1)
         out2 = self.get_embedding(x2)
@@ -54,13 +64,9 @@ class SiameseNetwork(nn.Module):
     
     def get_embedding(self, x):
         """
-        Get the embedding for a single input image.
-
-        Args:
-            x (torch.Tensor): Input tensor of shape (batch_size, channels, height, width).
-
-        Returns:
-            torch.Tensor: Embedding tensor of shape (batch_size, embedding_dim).
+        Compute an embedding for a batch of images
+        Args: x (torch.Tensor): input tensor of shape (B, C, H, W)
+        Returns: torch.Tensor: embedding tensor of shape (B, embedding_dim)
         """
         out = self.feature_extractor(x)
         out = out.view(out.size(0), -1)
@@ -69,13 +75,9 @@ class SiameseNetwork(nn.Module):
     
     def classify(self, x):
         """
-        Perform classification on the input image.
-
-        Args:
-            x (torch.Tensor): Input tensor of shape (batch_size, channels, height, width).
-
-        Returns:
-            torch.Tensor: Classification output tensor of shape (batch_size, num_classes).
+        Predict class logits from raw images 
+        Args: x (torch.Tensor): input tensor of shape (B, C, H, W)
+        Returns: torch.Tensor: logits of shape (B, num_classes)
         """
         embedding = self.get_embedding(x)
         return self.classifier(embedding)
@@ -86,6 +88,14 @@ class TripletLoss(nn.Module):
         self.margin = margin
 
     def calc_euclidean(self, x1, x2):
+        """
+        Compute squared Euclidean distance per sample
+        Args:
+            x1 (torch.Tensor): tensor of shape (B, D)
+            x2 (torch.Tensor): tensor of shape (B, D)
+        Returns:
+            torch.Tensor: distances of shape (B,) with squared L2 values
+        """
         return (x1 - x2).pow(2).sum(1)
 
     def forward(self, anchor: torch.Tensor, positive: torch.Tensor, negative: torch.Tensor) -> torch.Tensor:

@@ -1,3 +1,10 @@
+"""
+dataset.py
+
+Preprocessing, loading, and batching for the ISIC 2020 dataset
+Supports Siamese/Triplet training for skin lesion classification
+"""
+
 import os
 import random
 import numpy as np
@@ -8,6 +15,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from sklearn.model_selection import train_test_split
 
+from modules import get_config
 
 def get_data_path(metadata_path: str, image_dir: str) -> tuple[list]:
     """
@@ -104,7 +112,7 @@ def oversample_training(train_images, train_labels):
 
     return balanced_train_images, balanced_train_labels
 
-def get_data_loaders(images, labels, train_batch_size=32, test_val_batch_size=64):
+def get_data_loaders(train_batch_size=32, test_val_batch_size=64):
     """
     Build train, validation, and test DataLoaders for ISIC 2020 from image paths and labels
     All splits are converted to tensors and normalized, with data augmentation applied only to the training split
@@ -118,8 +126,18 @@ def get_data_loaders(images, labels, train_batch_size=32, test_val_batch_size=64
     Returns: tuple: (train_loader, val_loader, test_loader)
     """
     
+    # Get the current config
+    config = get_config()
+    
+    # Extract the data from the given locations
+    images, labels = get_data_path(
+        metadata_path=config["metadata_path"],
+        image_dir=config["image_path"]
+    )
+    
     # Data split
     train_images, val_images, test_images, train_labels, val_labels, test_labels = split_train_val_test(images, labels)
+    
     # Oversampling for train dataset
     train_images, train_labels = oversample_training(train_images, train_labels)
 

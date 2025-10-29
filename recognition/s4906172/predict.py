@@ -1,3 +1,11 @@
+"""
+predict.py
+
+Containing functions for predicting and evaluating the performance of a
+trained Siamese Network model. It includes functions for predictions, calculating metrics, and visualizing results.
+"""
+
+
 import os
 import torch
 import torch.nn as nn
@@ -8,24 +16,37 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
-
+from typing import Tuple
 from train import validate
 from modules import TripletLoss, SiameseNetwork, get_config
 
-## Functions
 def produce_evaluation_metrics(
-    test_y_pred: list,
-    test_y_probs: list,
-    test_y_true: list
+    test_pred: list,
+    test_probs: list,
+    test_true: list
 ) -> None:
+    """
+    Compute and report evaluation metrics for a binary classifier
+
+    Calculates and prints:
+      - Testing overall accuracy.
+      - ROC-AUC score.
+      - Testing Sensitivity. 
+      - Testing Specificity.
+
+    Args:
+        test_pred (list): predicted labels for each sample.
+        test_probs (list): predicted probability for the positive class for each sample.
+        test_true (list): ground-truth labels.
+    """
     
-    test_accuracy = accuracy_score(test_y_true, test_y_pred)
-    test_auc_roc = roc_auc_score(test_y_true, test_y_probs)
+    test_accuracy = accuracy_score(test_true, test_pred)
+    test_auc_roc = roc_auc_score(test_true, test_probs)
     print(f"Testing Accuracy: {test_accuracy}")
     print(f"Testing AUR ROC: {test_auc_roc}")
 
     # Calculate the confusion matrix
-    conf_matrix = confusion_matrix(test_y_true, test_y_pred)
+    conf_matrix = confusion_matrix(test_true, test_pred)
     tn, fp, fn, tp = conf_matrix.ravel()
 
     sensitivity = tp / (tp + fn) # Calculate Sensitivity (True Positive Rate)
@@ -35,17 +56,23 @@ def produce_evaluation_metrics(
 
 
 def plot_tsne_from_embeddings(
-    embeddings, 
-    out_path="testing_tsne_embeddings.png", 
-    title="t-SNE visualization of embeddings"
+    embeddings: np.ndarray | torch.Tensor, 
+    out_path: str = "testing_tsne_embeddings.png", 
+    title: str = "t-SNE visualization of embeddings"
 ) -> None:
     """
-    Compute 2D t-SNE from embeddings and save a scatter plot
-    Only embeddings are required
-    Returns (embeddings_2d, out_path)
-    """
+    Create a 2D t-SNE plot from high-dimensional embeddings and save it to an image file
 
+    Args:
+        embeddings (np.ndarray | torch.Tensor): contain embeddings of dimension
+        out_path (str): path to save the output image file
+        title (str): figure title to display on the plot
+    """
+    
+    # Set up t-SNE to reduce D-dim embeddings to 2D 
     tsne = TSNE(n_components=2, init="pca", random_state=42, n_iter=2000, learning_rate=200, perplexity=30)
+    
+    # Run t-SNE and get the 2D coordinates for each embedding
     X2 = tsne.fit_transform(embeddings)
 
     # plot with a single color since no labels provided
@@ -62,13 +89,23 @@ def plot_tsne_from_embeddings(
     
     
 def plot_confusion_matrix(
-    test_y_true,
-    test_y_pred,
-    out_path="testing_confusion_matrix.png", 
-    title="Confusion Matrix (Percentages)" 
+    test_true: list,
+    test_pred: list,
+    out_path: str ="testing_confusion_matrix.png", 
+    title: str ="Confusion Matrix (Percentages)" 
 ) -> None:
+    """
+    Plot the confusion matrix and save it to an image file
+
+    Args:
+        test_true (list): ground-truth labels.
+        test_pred (list): predicted labels for each sample.
+        out_path (str): path to save the output image file.
+        title (str): figure title to display on the plot.
+    """
+    
     # Calculate the confusion matrix
-    conf_matrix = confusion_matrix(test_y_true, test_y_pred)
+    conf_matrix = confusion_matrix(test_true, test_pred)
     
     # Normalize the confusion matrix by rows (i.e., by the actual class counts)
     conf_matrix_normalized = conf_matrix.astype('float') / conf_matrix.sum(axis=1)[:, np.newaxis]
@@ -90,21 +127,32 @@ def plot_confusion_matrix(
     plt.close()
 
 def plot_roc_curve(
-    test_y_true, 
-    test_y_probs,
-    out_path="roc_curve.png", 
-    title="ROC Curve"
+    test_true: list, 
+    test_probs: list,
+    out_path: list ="roc_curve.png", 
+    title: list ="ROC Curve"
 ):
-    y_true = np.asarray(test_y_true)
-    y_prob = np.asarray(test_y_probs, dtype=float)
+    """
+    Plot the roc curve and save it to an image file
+
+    Args:
+        test_true (list): ground-truth labels.
+        test_probs (list): predicted probability for the positive class for each sample.
+        out_path (str): path to save the output image file.
+        title (str): figure title to display on the plot.
+    """
+    y_true = np.asarray(test_true)
+    y_prob = np.asarray(test_probs, dtype=float)
 
     # Need both classes present to compute ROC
     if np.unique(y_true).size < 2:
         print("[plot_roc_curve] Only one class present in y_true; skipping ROC.")
         return None
 
+    # Compute false positive rate and true positive rate across thresholds
     fpr, tpr, _ = roc_curve(y_true, y_prob)
 
+    # Plot roc curve 
     plt.figure(figsize=(8, 6))
     plt.plot(fpr, tpr, label="ROC curve")
     plt.plot([0, 1], [0, 1], linestyle="--")
@@ -123,7 +171,22 @@ def test_siamese_network(
     test_loader: DataLoader,
     model: SiameseNetwork,
     device: str
-):
+)-> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Evaluate the model on the test set and return predictions, probabilities, true labels, and embeddings
+
+    Uses the classifier head on anchor images and also collects their embeddings
+
+    Args:
+        test_loader (DataLoader): Dataloader for test dataset.
+        model (SiameseNetwork): Trained model.
+        device (str): Compute device.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+            (preds, probs, labels, embeddings_2d) 
+    """
+    
     model.eval() 
     all_labels, all_probs, all_preds, all_embeddings = [], [], [], []
 
@@ -135,7 +198,9 @@ def test_siamese_network(
             embeddings = model.get_embedding(anchor)
             classifier_out = model.classify(anchor) 
                        
+            # Probability of the positive class (class index 1)           
             probs = torch.softmax(classifier_out, dim=1)[:, 1]
+            # Predicted class index via argmax over logits
             _, preds = classifier_out.max(1)
             
             all_labels.extend(labels.cpu().numpy())
@@ -150,11 +215,28 @@ def results_siamese_network(
     model: SiameseNetwork,
     device: str
 ):
-    test_y_pred, test_y_probs, test_y_true, test_embeddings = test_siamese_network(test_loader=test_loader, model=model, device=device)
+    """
+    Run the full evaluation pipeline on the test dataset and generate metrics/plots
+
+    Executes inference to get predictions, probabilities, true labels, and embeddings,
+    then prints summary metrics:
+      - evaluation metrics (accuracy, precision, recall, F1, ROC-AUC)
+      - confusion matrix
+      - t-SNE visualization of embeddings
+      - ROC curve
+
+    Args:
+        test_loader (DataLoader): Dataloader for training dataset.
+        model (SiameseNetwork): Trained model.
+        device (str): compute device.
+    """
+    # Inference
+    test_pred, test_probs, test_true, test_embeddings = test_siamese_network(test_loader=test_loader, model=model, device=device)
     
-    produce_evaluation_metrics(test_y_pred, test_y_probs, test_y_true)
-    plot_confusion_matrix(test_y_true, test_y_pred)
+    # Metrics + visualizations
+    produce_evaluation_metrics(test_pred, test_probs, test_true)
+    plot_confusion_matrix(test_true, test_pred)
     plot_tsne_from_embeddings(test_embeddings)
-    plot_roc_curve(test_y_true, test_y_probs)
+    plot_roc_curve(test_true, test_probs)
     
     
