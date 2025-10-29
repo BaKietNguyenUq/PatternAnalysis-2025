@@ -114,7 +114,7 @@ def get_config() -> dict:
         "image_path": "./data/train-image/image/",
         "train_batch_size": 32,
         "test_val_batch_size": 64,
-        "embedding_dims": 256,
+        "embedding_dims": 300,
         "learning_rate": 0.001,
         "epochs": 25,
     }
