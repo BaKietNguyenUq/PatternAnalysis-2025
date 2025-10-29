@@ -1,18 +1,18 @@
 # Siamese network for Classification of ISIC 2020 Data Set (Project 9)
 
+### Student Name: Ba Kiet Nguyen
+
+### Student ID: 49061729
+
 ## Overview
 
 ### Project Overview
 
 This project aims to create a classifier based on Siamese network to classify the ISIC 2020 Kaggle Challenge data set (normal and melanoma) having an accuracy of around 0.8 on the test set.
 
-### Accuracy Metric
-
 Because the dataset is extremely imbalanced (1.8% melanoma vs 98.2% benign), plain accuracy is misleading, a trivial classifier that always predicts “benign” reaches 98.2% while learning nothing about melanomas
 
-Therefore we evaluate the model using AUC-ROC, which balances sensitivity (TPR) and specificity (TNR) and considers both classes.
-
-AUC-ROC is standard for imbalanced medical-imaging tasks and was the official metric for the SIIM-ISIC melanoma challenge that this dataset comes from. Accordingly, our goal is to maximize AUC-ROC on the test set.
+Therefore we evaluate the model using AUC-ROC, which balances sensitivity (TPR) and specificity (TNR) and considers both classes. AUC-ROC is standard for imbalanced medical-imaging tasks. Accordingly, our goal is to maximize AUC-ROC on the test set.
 
 ## Environment Setup
 
@@ -121,6 +121,7 @@ The Siamese model uses a ResNet-50 backbone as a shared feature extractor to tur
 #### Feature Extractor
 
 ![alt text](figures/ResNet-50-architecture-for-regression.png)
+
 _Image 1: ResNet50 Architecture_
 
 - The model uses `ResNet50` backbone with the last fully connected layer FC1 is replaced.
@@ -161,12 +162,14 @@ We train the model with two goals at once: learn a good feature space and make c
 
 ### Traning Details
 
-- Epochs: 20.
+- Epochs: 25.
 - Train batch size: 32.
 - Optimizer: Adam.
 - Initial learning rate: 0.001
 - Embedding dimension for Siamese network: 256.
 - Learning rate scheduler: ReduceLROnPlateau.
+- Using mixed precision.
+- Using gradient clipping prevents exploding gradients by capping their size before the optimizer step.
 - Save model with better auc roc score at every epoch.
 
 ### Evaluation Details
@@ -255,3 +258,6 @@ Given the test set has only 59 melanoma cases, the model still identifies melano
 2. GeeksforGeeks. (2025, August 4). AUC ROC Curve in Machine Learning. https://www.geeksforgeeks.org/machine-learning/auc-roc-curve/
 3. Nag, R. (2022, November 19). A comprehensive guide to Siamese neural networks. Medium. https://medium.com/@rinkinag24/a-comprehensive-guide-to-siamese-neural-networks-3358658c0513
 4. Brata, M., & Zakia, I. (2024). ResNet-50 architecture for regression [Figure]. In Path Loss Estimation at Sub-6 GHz and Millimeter Wave Frequencies Using Fine-Tuning. ResearchGate. https://www.researchgate.net/figure/ResNet-50-architecture-for-regression_fig4_384281904
+5. TorchVision Team. (2025). resnet50 — Torchvision main documentation. PyTorch. https://docs.pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html
+6. Hey, A. (2024, November 3). Guide to gradient clipping in PyTorch. Biased-Algorithms (Medium). https://medium.com/biased-algorithms/guide-to-gradient-clipping-in-pytorch-f1db24ea08a2
+7. GeeksforGeeks. (2025, June 18). What is Mixed Precision Training? https://www.geeksforgeeks.org/deep-learning/what-is-mixed-precision-training/
