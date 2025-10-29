@@ -17,6 +17,101 @@ from sklearn.model_selection import train_test_split
 
 from modules import get_config
 
+class TripletDataGenerator(torch.utils.data.Dataset):
+    """
+    PyTorch Dataset that yields triplets (anchor, positive, negative) for training with Triplet Loss
+    - In training mode, each __getitem__ returns three transformed images and the anchor label
+    - In eval mode, it returns only the transformed anchor image plus empty tensors for positive/negative and the label
+    """
+    def __init__(self, images, labels=None, train=True, transform=None):
+        """
+        Args:
+            images: list/array of image file paths for anchors, positives, and negatives
+            labels: list/array of class labels aligned with images
+            train: if True, generate triplets; if False, return anchor-only samples
+            transform: callable transform applied to each image
+        """
+        self.is_train = train
+        self.transform = transform
+
+        self.images = images
+        self.labels = labels
+
+    def __len__(self):
+        """
+        Return the number of images available for sampling
+        """
+        return len(self.images)
+
+    def _read_rgb01(self, path: str) -> np.ndarray:
+        """
+        Read an image from disk and return it as float32 in [0, 1] range in BGR order as read by OpenCV
+        Note: cv2.imread reads BGR; convert to RGB if your transform/model expects RGB
+        """
+        return cv2.imread(path) / 255.0
+    
+    def _sample_positive(self, anchor_index: int, anchor_label: int) -> int:
+        """
+        Pick an index of a positive sample for the given anchor
+        Args:
+            anchor_index: index of the anchor image in self.images
+            anchor_label: class label of the anchor
+        Returns:
+            Index of a different image with the same label as the anchor
+            If no other sample exists for this class, returns anchor_index as a fallback
+        """
+        
+        # choose a different index with the same label as anchor
+        positive_list = [idx for idx, label in enumerate(self.labels) if label == anchor_label and idx != anchor_index]
+        if len(positive_list) == 0:
+            return anchor_index  # fallback when class has a single sample
+        return random.choice(positive_list)
+
+    def _sample_negative(self, anchor_index: int, anchor_label: int) -> int:
+        """
+        Pick an index of a negative sample for the given anchor
+        Args:
+            anchor_index: index of the anchor image in self.images
+            anchor_label: class label of the anchor
+        Returns:
+            Index of an image whose label is different from the anchor label and not the anchor itself
+        """
+        negative_list = [idx for idx, label in enumerate(self.labels) if label != anchor_label and idx != anchor_index]
+        negative_index = random.choice(negative_list)
+        
+        return random.choice(negative_index)
+
+    def __getitem__(self, anchor_index) -> tuple[torch.tensor, torch.tensor, torch.tensor, int]:
+        """
+        Get a triplet (anchor, positive, negative) and the anchor label for training
+        or a single anchor image with dummy tensors when not training
+        
+        Args: anchor_index (int): index of the anchor image
+        
+        Returns: anchor_img, positive_img, negative_img, anchor_label
+        """
+        anchor_img = self._read_rgb01(self.images[anchor_index])
+        anchor_label = self.labels[anchor_index]
+
+        if self.is_train:
+            positive_index = self._sample_positive(anchor_index, anchor_label)
+            positive_img = self._read_rgb01(self.images[positive_index])
+
+            negative_index = self._sample_negative(anchor_index, anchor_label)
+            negative_img = self._read_rgb01(self.images[negative_index])
+
+            if self.transform:
+                anchor_img = self.transform(anchor_img)
+                positive_img = self.transform(positive_img)
+                negative_img = self.transform(negative_img)
+
+            return anchor_img, positive_img, negative_img, anchor_label
+
+        else:
+            if self.transform:
+                anchor_img = self.transform(anchor_img)
+            return anchor_img, torch.empty(1), torch.empty(1), anchor_label
+
 def get_data_path(metadata_path: str, image_dir: str) -> tuple[list]:
     """
     Load ISIC 2020 image paths and labels from metadata and an image folder
@@ -200,71 +295,3 @@ def get_data_loaders(train_batch_size=32, test_val_batch_size=64):
     val_loader = DataLoader(val_ds, batch_size=test_val_batch_size, shuffle=True, num_workers=4)
     test_loader = DataLoader(test_ds, batch_size=test_val_batch_size, shuffle=True, num_workers=4)
     return train_loader, val_loader, test_loader
-
-
-
-class TripletDataGenerator(torch.utils.data.Dataset):
-    """
-    PyTorch Dataset that yields triplets (anchor, positive, negative) for training with Triplet Loss
-    - In training mode, each __getitem__ returns three transformed images and the anchor label
-    - In eval mode, it returns only the transformed anchor image plus empty tensors for positive/negative and the label
-    """
-    def __init__(self, images, labels=None, train=True, transform=None):
-        """
-        Args:
-            images: list/array of image file paths for anchors, positives, and negatives
-            labels: list/array of class labels aligned with images
-            train: if True, generate triplets; if False, return anchor-only samples
-            transform: callable transform applied to each image
-        """
-        self.is_train = train
-        self.transform = transform
-
-        self.images = images
-        self.labels = labels
-
-    def __len__(self):
-        """
-        Return the number of images available for sampling
-        """
-        return len(self.images)
-
-    def _read_rgb01(self, path: str) -> np.ndarray:
-        """
-        Read an image from disk and return it as float32 in [0, 1] range in BGR order as read by OpenCV
-        Note: cv2.imread reads BGR; convert to RGB if your transform/model expects RGB
-        """
-        return cv2.imread(path) / 255.0
-
-    def __getitem__(self, anchor_index) -> tuple[torch.tensor, torch.tensor, torch.tensor, int]:
-        """
-        Get a triplet (anchor, positive, negative) and the anchor label for training
-        or a single anchor image with dummy tensors when not training
-        
-        Args: anchor_index (int): index of the anchor image
-        
-        Returns: anchor_img, positive_img, negative_img, anchor_label
-        """
-        anchor_img = self._read_rgb01(self.images[anchor_index])
-        anchor_label = self.labels[anchor_index]
-
-        if self.is_train:
-            positive_list = [idx for idx, label in enumerate(self.labels) if label == anchor_label and idx != anchor_index]
-            positive_index = random.choice(positive_list)
-            positive_img = self._read_rgb01(self.images[positive_index])
-
-            negative_list = [idx for idx, label in enumerate(self.labels) if label != anchor_label and idx != anchor_index]
-            negative_index = random.choice(negative_list)
-            negative_img = self._read_rgb01(self.images[negative_index])
-
-            if self.transform:
-                anchor_img = self.transform(anchor_img)
-                positive_img = self.transform(positive_img)
-                negative_img = self.transform(negative_img)
-
-            return anchor_img, positive_img, negative_img, anchor_label
-
-        else:
-            if self.transform:
-                anchor_img = self.transform(anchor_img)
-            return anchor_img, torch.empty(1), torch.empty(1), anchor_label
