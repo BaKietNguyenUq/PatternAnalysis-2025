@@ -46,9 +46,6 @@ conda install pytorch=2.1.1 torchvision=0.16.1 torchaudio pytorch-cuda=11.8 -c p
 
 # Core libraries
 conda install scikit-learn=1.3.2 matplotlib=3.7.2 seaborn=0.13.2 tqdm=4.66.5 pillow=10.4.0 pandas=2.0.3 numpy=1.24.3 -y
-
-# OpenCV (required by dataset.py)
-conda install -c conda-forge opencv=4.8.1 -y
 ```
 
 ### This installs
@@ -64,7 +61,6 @@ conda install -c conda-forge opencv=4.8.1 -y
 - Pillow (PIL): 10.4.0
 - pandas: 2.0.3
 - numpy: 1.24.3
-- opencv: 4.8.1
 
 ## Dataset Overview
 

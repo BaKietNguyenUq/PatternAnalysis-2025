@@ -332,7 +332,7 @@ def main() -> None:
         val_aucroc_per_epoch=val_auc_per_epoch,
     )
     
-    model.load_state_dict(torch.load('best_model.pth'))
+    model.load_state_dict(torch.load('best_model.pt'))
     
     # Test the model with test dataset
     results_siamese_network(test_loader, model, device)
