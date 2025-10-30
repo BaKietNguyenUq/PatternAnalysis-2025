@@ -45,6 +45,11 @@ class TripletDataGenerator(torch.utils.data.Dataset):
         return len(self.images)
 
     def _read_pil(self, path):
+        """
+        Open an image from disk using PIL and return it in RGB mode
+        Args: path: string path to the image file
+        Returns: PIL.Image in RGB mode
+        """
         return Image.open(path).convert("RGB")
     
     def _sample_positive(self, anchor_index: int, anchor_label: int) -> int:
