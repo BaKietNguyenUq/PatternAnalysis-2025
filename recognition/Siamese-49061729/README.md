@@ -177,7 +177,11 @@ We train the model with two goals at once: learn a good feature space and make c
 
 ### Evaluation Details
 
-#### 1. Testing AUC ROC (Area Under the Receiver Operating Characteristic Curve)
+#### 1. Testing accuracy
+
+- This is the overall accuracy of the model on the testset.
+
+#### 2. Testing AUC ROC (Area Under the Receiver Operating Characteristic Curve)
 
 - This is the primary evaluation metric for the model. Because the dataset is extremely imbalanced (1.8% melanoma vs 98.2% benign).
 
@@ -185,26 +189,36 @@ Therefore we evaluate the model using AUC-ROC, which balances sensitivity (TPR) 
 
 - It measures how well the model separates classes across all thresholds. It is robust to class imbalance, summarizes the full sensitivity–specificity trade-off in one number.
 
-#### 2. Confusion Matrix
+#### 3. Confusion Matrix
 
 - Visualize representative examples of: true positives (malignant correctly classified), true negatives (benign correctly classified), false positives (benign misclassified as malignant), and false negatives (malignant misclassified as benign).
 - A confusion matrix shows how many examples were correctly and incorrectly classified for each class, making it easy to spot false positives and false negatives.
 
-#### 3. Training Figures: Training / Validation loss, accuracy and AUC ROC over the training epochs
+#### 4. Training Figures: Training / Validation loss, accuracy and AUC ROC over the training epochs
 
 - Line plots per epoch: loss decrease, accuracy increase, and AUC increase for both training and validation.
 - Annotate learning-rate schedule changes and saved checkpoints
 - Find out overfitting signals (e.g., widening train–val gap) and final selected model checkpoint.
 
-#### 4. Testing ROC Curve
+#### 5. Testing ROC Curve
 
 - It represents the trade-off between the sensitivity and specificity of a classifier. Which is useful under class imbalance.
 
-#### 5. Testing t-SNE Embedding Visualization
+#### 6. Testing t-SNE Embedding Visualization
+
+- It plot 2D t-SNE of the model’s embeddings to see how images cluster by class.
 
 ## Training Results
 
-### 1. Testing AUC ROC (Area Under the Receiver Operating Characteristic Curve)
+### 1. Testing accuracy
+
+```
+0.8255358
+```
+
+The model shows strong performance on the test set, above the 0.80 threshold.
+
+### 2. Testing AUC ROC (Area Under the Receiver Operating Characteristic Curve)
 
 ```
 0.8707
@@ -212,7 +226,7 @@ Therefore we evaluate the model using AUC-ROC, which balances sensitivity (TPR) 
 
 The AUC ROC score in above 0.8 indicates that the model effectively distinguishes between positive and negative instances in the case of the dataset imbalance.
 
-### 2. Confusion Matrix
+### 3. Confusion Matrix
 
 ![alt text](figures/testing_confusion_matrix.png)
 _Image 3: Confusion Matrix Visualisation_
@@ -233,7 +247,7 @@ For the Testing Sensitivity.
 
 Given the test set has only 59 melanoma cases, the model still identifies melanomas reliably, achieving 0.7758 (around 0.8) and consistent with our target.
 
-### 3. Training Figures: Training / Validation loss, accuracy and AUC ROC over the training epochs
+### 4. Training Figures: Training / Validation loss, accuracy and AUC ROC over the training epochs
 
 | ![Image 1](figures/train_val_progress_loss.png) | ![Image 2](figures/train_val_progress_accuracy.png) | ![Image 3](figures/train_val_progress_auroc.png) |
 | ----------------------------------------------- | --------------------------------------------------- | ------------------------------------------------ |
@@ -242,13 +256,13 @@ Given the test set has only 59 melanoma cases, the model still identifies melano
 - Steady decrease in loss for both training and validation sets.
 - The accuracy and AUC-ROC score increase over epochs in both training and validation sets. The accuracy and AUC-ROc rate slow down later, but the model still able to achieve more than 0.8 on auc roc score
 
-### 4. Testing ROC Curve
+### 5. Testing ROC Curve
 
 - AUC ROC score 0.8707 showing strong discrimination; the model separates melanoma vs benign well.
 
 ![alt text](figures/roc_curve.png)
 
-### 3. Testing t-SNE Embedding Visualization
+### 6. Testing t-SNE Embedding Visualization
 
 - t-SNE shows two well-separated clusters (yellow vs dark blue), indicating the embeddings are strongly discriminative between the two classes.
 - There is partial overlap. This means some samples are uncertain or share similar features.

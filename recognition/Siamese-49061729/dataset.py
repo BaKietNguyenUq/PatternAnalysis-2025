@@ -148,7 +148,7 @@ def get_data_path(metadata_path: str, image_dir: str) -> tuple[list]:
 
 def split_train_val_test(images: list, labels: list):
     """
-    Preform a 0.8 train, 0.1 validation, 0.1 test split on the given data set.
+    Apply a 0.8 train, 0.1 validation, 0.1 test split on the data set.
 
     Returns: train_images, val_images, test_images, train_labels, val_labels, test_labels
     """
