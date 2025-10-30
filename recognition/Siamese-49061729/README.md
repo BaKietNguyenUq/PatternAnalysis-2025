@@ -87,7 +87,7 @@ For train set:
 - `RandomVerticalFlip(p=0.5)` Flips top to bottom or bottom to top with 50% probability.
 - `RandomRotation(degrees=10)` Rotates by a random angle in the range [-10, +10] degree.
 - `ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)`
-  Randomly perturbs brightness ±20%, contrast ±20%, saturation ±20%, and hue ±0.1 (≈±10% of hue range)
+  Randomly adjusts the image’s brightness, contrast, saturation, and hue to create slight visual variation.
 
 These data augmentations will expand dataset diversity and reduce overfitting and improve generalization.
 
@@ -105,7 +105,7 @@ We normalize images to ResNet-50’s ImageNet pretraining stats:
 ### Data splitting
 
 - Applying 80/10/10 split for train/validation/test, intentionally keeping the validation and test sets small to maximize training data and improve model performance.
-- Detail of data in dataset
+- Details of classes in dataset.
 
   |       | Normal | Melanoma |
   | :---- | :----: | :------: |
@@ -179,7 +179,7 @@ We train the model with two goals at once: learn a good feature space and make c
 
 #### 1. Testing accuracy
 
-- This is the overall accuracy of the model on the testset.
+- This is the accuracy of the model on the testset.
 
 #### 2. Testing AUC ROC (Area Under the Receiver Operating Characteristic Curve)
 
