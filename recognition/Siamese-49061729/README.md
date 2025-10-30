@@ -183,9 +183,7 @@ We train the model with two goals at once: learn a good feature space and make c
 
 #### 2. Testing AUC ROC (Area Under the Receiver Operating Characteristic Curve)
 
-- This is the primary evaluation metric for the model. Because the dataset is extremely imbalanced (1.8% melanoma vs 98.2% benign).
-
-Therefore we evaluate the model using AUC-ROC, which balances sensitivity (TPR) and specificity (TNR) and considers both classes.
+- This is the primary evaluation metric for the model. Because the dataset is extremely imbalanced (1.8% melanoma vs 98.2% benign). Therefore we evaluate the model using AUC-ROC, which balances sensitivity (TPR) and specificity (TNR) and considers both classes.
 
 - It measures how well the model separates classes across all thresholds. It is robust to class imbalance, summarizes the full sensitivity–specificity trade-off in one number.
 
