@@ -117,15 +117,17 @@ We normalize images to ResNet-50’s ImageNet pretraining stats:
 
 ### Model Overview
 
-The Siamese model uses a ResNet-50 backbone as a shared feature extractor to turn each image into a embedding. During training, it takes triplets of images - an anchor image, a positive image from the same class, and a negative image from a different class and learns to pull the anchor close to the positive and push it away from the negative using a triplet loss. On top of the embedding, there is a classifier which will predict the class (normal vs melanoma).
+In the Siamese network, we take two images and pass them through the same network to get the feature embedding for the corresponding image. Then we compare the feature embeddings, if they are from the same class they should have similar embeddings. If images from two different classes then the embeddings should be far away. In this project, triplet loss is used to compute the loss for a pair of data samples.
+
+![alt text](./figures/siamese.png)
+
+In this project, the Siamese model uses a ResNet-50 backbone as a shared feature extractor to turn each image into a embedding. During training, it takes triplets of images - an anchor image, a positive image from the same class, and a negative image from a different class and learns to pull the anchor close to the positive and push it away from the negative using a triplet loss. On top of the embedding, there is a classifier which will predict the class (normal vs melanoma).
 
 ### Model Architecture
 
 #### Feature Extractor
 
 ![alt text](figures/ResNet-50-architecture-for-regression.png)
-
-_Image 1: ResNet50 Architecture_
 
 - The model uses `ResNet50` backbone with the last fully connected layer FC1 is replaced.
 - Feature extractor will output 2048-dimensional vector.
@@ -134,7 +136,7 @@ _Image 1: ResNet50 Architecture_
 
 - The last fully connected layer, FC1 of resnet50 is replaced by a custom fully connected layers. The layers are as follows:
 
-- Linear(2048 -> 512) -> ReLU -> Dropout(0.5) -> Linear(512 -> 256) -> ReLU -> Dropout(0.5) -> Linear(256 -> embedding_dim)
+  Linear(2048 -> 1024) -> ReLU -> Dropout(0.5) -> Linear(1024 -> 512) -> ReLU -> Dropout(0.5) -> Linear(512 -> 256) -> ReLU -> Dropout(0.5) -> Linear(256 -> embedding_dim).
 
 #### Classifier
 
@@ -145,7 +147,6 @@ _Image 1: ResNet50 Architecture_
 ### Triplet Loss
 
 ![alt text](figures/Triplet_Loss_Minimization.png)
-_Image 2: Triplet Loss Visualisation_
 
 For this model, we implement TripletLoss loss function. Tripletloss will take each triplet output and will calculate the loss via the following formula:
 
@@ -171,7 +172,7 @@ We train the model with two goals at once: learn a good feature space and make c
 - Initial learning rate: 0.001
 - Embedding dimension for Siamese network: 256.
 - Learning rate scheduler: ReduceLROnPlateau.
-- Using mixed precision.
+- Using mixed precision means running some ops in float16/float8 and the rest in float32 to speed up training and use less GPU memory while keeping similar accuracy.
 - Using gradient clipping prevents exploding gradients by capping their size before the optimizer step.
 - Save model with better auc roc score at every epoch.
 
@@ -227,7 +228,6 @@ The AUC ROC score in above 0.8 indicates that the model effectively distinguishe
 ### 3. Confusion Matrix
 
 ![alt text](figures/testing_confusion_matrix.png)
-_Image 3: Confusion Matrix Visualisation_
 
 It is clear to see that Testing Specificity (true negative rate)
 
