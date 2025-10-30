@@ -9,10 +9,8 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.cuda.amp import autocast, GradScaler
+from torch.amp import autocast, GradScaler
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from dataset import get_data_loaders
-from modules import get_model, get_loss
 import numpy as np
 from sklearn.metrics import confusion_matrix, roc_auc_score, accuracy_score
 import matplotlib.pyplot as plt
@@ -334,5 +332,10 @@ def main() -> None:
         val_aucroc_per_epoch=val_auc_per_epoch,
     )
     
+    model.load_state_dict(torch.load('best_model.pth'))
+    
     # Test the model with test dataset
     results_siamese_network(test_loader, model, device)
+    
+if __name__ == '__main__':
+    main()

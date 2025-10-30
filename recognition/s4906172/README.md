@@ -109,6 +109,13 @@ We normalize images to ResNet-50’s ImageNet pretraining stats:
 ### Data splitting
 
 - Applying 80/10/10 split for train/validation/test, intentionally keeping the validation and test sets small to maximize training data and improve model performance.
+- Detail of data in dataset
+
+  |       | Normal | Melanoma |
+  | :---- | :----: | :------: |
+  | Train | 26033  |   467    |
+  | Val   |  3255  |    58    |
+  | Test  |  3254  |    59    |
 
 ## Siamese Model
 

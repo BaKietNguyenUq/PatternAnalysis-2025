@@ -14,6 +14,7 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from sklearn.model_selection import train_test_split
+from PIL import Image
 
 from modules import get_config
 
@@ -43,12 +44,8 @@ class TripletDataGenerator(torch.utils.data.Dataset):
         """
         return len(self.images)
 
-    def _read_rgb01(self, path: str) -> np.ndarray:
-        """
-        Read an image from disk and return it as float32 in [0, 1] range in BGR order as read by OpenCV
-        Note: cv2.imread reads BGR; convert to RGB if your transform/model expects RGB
-        """
-        return cv2.imread(path) / 255.0
+    def _read_pil(self, path):
+        return Image.open(path).convert("RGB")
     
     def _sample_positive(self, anchor_index: int, anchor_label: int) -> int:
         """
@@ -79,7 +76,7 @@ class TripletDataGenerator(torch.utils.data.Dataset):
         negative_list = [idx for idx, label in enumerate(self.labels) if label != anchor_label and idx != anchor_index]
         negative_index = random.choice(negative_list)
         
-        return random.choice(negative_index)
+        return random.choice(negative_list)
 
     def __getitem__(self, anchor_index) -> tuple[torch.tensor, torch.tensor, torch.tensor, int]:
         """
@@ -90,15 +87,15 @@ class TripletDataGenerator(torch.utils.data.Dataset):
         
         Returns: anchor_img, positive_img, negative_img, anchor_label
         """
-        anchor_img = self._read_rgb01(self.images[anchor_index])
+        anchor_img = self._read_pil(self.images[anchor_index])
         anchor_label = self.labels[anchor_index]
 
         if self.is_train:
             positive_index = self._sample_positive(anchor_index, anchor_label)
-            positive_img = self._read_rgb01(self.images[positive_index])
+            positive_img = self._read_pil(self.images[positive_index])
 
             negative_index = self._sample_negative(anchor_index, anchor_label)
-            negative_img = self._read_rgb01(self.images[negative_index])
+            negative_img = self._read_pil(self.images[negative_index])
 
             if self.transform:
                 anchor_img = self.transform(anchor_img)
