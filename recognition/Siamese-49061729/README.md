@@ -178,7 +178,7 @@ We train the model with two goals at once: learn a good feature space and make c
 - Initial learning rate: 0.001
 - Embedding dimension for Siamese network: 300.
 - Learning rate scheduler: ReduceLROnPlateau.
-- Using mixed precision means running some ops in float16/float8 and the rest in float32 to speed up training and use less GPU memory while keeping similar accuracy.
+- Using mixed precision: Running some operations in float16/float8 and the rest in float32 to speed up training and use less GPU memory while keeping similar accuracy.
 - Using gradient clipping prevents exploding gradients by capping their size before the optimizer step.
 - Save model with better auc roc score at every epoch.
 
