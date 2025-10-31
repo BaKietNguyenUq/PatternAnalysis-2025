@@ -280,6 +280,11 @@ def plot_training_graphs(
     return saved
 
 def main() -> None:
+    """
+    Run the full training pipeline: build dataloaders, train the model, 
+    evaluate on the test set, and plot metrics.
+    """
+    
     # Determine device that we are training on
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
