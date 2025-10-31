@@ -99,6 +99,11 @@ class TripletLoss(nn.Module):
         return (x1 - x2).pow(2).sum(1)
 
     def forward(self, anchor: torch.Tensor, positive: torch.Tensor, negative: torch.Tensor) -> torch.Tensor:
+        """
+        Calculate triplet margin loss for three input embeddings
+        Args: anchor, positive, negative embeddings (B, D)
+        Returns: mean loss over batch as a scalar tensor
+        """
         distance_positive = self.calc_euclidean(anchor, positive)
         distance_negative = self.calc_euclidean(anchor, negative)
         losses = torch.relu(distance_positive - distance_negative + self.margin)

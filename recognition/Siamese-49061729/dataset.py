@@ -2,7 +2,7 @@
 dataset.py
 
 Preprocessing, loading, and batching for the ISIC 2020 dataset
-Supports Siamese/Triplet training for skin lesion classification
+Supports Siamese/Triplet training with augmentations, data split, and oversampling
 """
 
 import os
@@ -30,7 +30,7 @@ class TripletDataGenerator(torch.utils.data.Dataset):
             images: list/array of image file paths for anchors, positives, and negatives
             labels: list/array of class labels aligned with images
             train: if True, generate triplets; if False, return anchor-only samples
-            transform: callable transform applied to each image
+            transform: transform applied to each image
         """
         self.is_train = train
         self.transform = transform
@@ -79,7 +79,6 @@ class TripletDataGenerator(torch.utils.data.Dataset):
             Index of an image whose label is different from the anchor label and not the anchor itself
         """
         negative_list = [idx for idx, label in enumerate(self.labels) if label != anchor_label and idx != anchor_index]
-        negative_index = random.choice(negative_list)
         
         return random.choice(negative_list)
 
@@ -92,14 +91,17 @@ class TripletDataGenerator(torch.utils.data.Dataset):
         
         Returns: anchor_img, positive_img, negative_img, anchor_label
         """
+        # Read anchor image
         anchor_img = self._read_pil(self.images[anchor_index])
         anchor_label = self.labels[anchor_index]
 
         if self.is_train:
             positive_index = self._sample_positive(anchor_index, anchor_label)
+            # Read positive image
             positive_img = self._read_pil(self.images[positive_index])
 
             negative_index = self._sample_negative(anchor_index, anchor_label)
+            # Read negative image
             negative_img = self._read_pil(self.images[negative_index])
 
             if self.transform:

@@ -221,7 +221,7 @@ def train_siamese_network(
     train_loss_per_epoch, train_acc_per_epoch, train_auc_per_epoch = [], [], []
     val_loss_per_epoch, val_acc_per_epoch, val_auc_per_epoch = [], [], []
     
-    best_val_auc = 0
+    best_val_auc = 0.0
     
     for epoch in range(epochs):
 

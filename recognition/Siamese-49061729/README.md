@@ -6,13 +6,13 @@
 
 ## Overview
 
-### Project Overview
-
 This project aims to create a classifier based on Siamese network to classify the ISIC 2020 Kaggle Challenge data set (normal and melanoma) having an accuracy of around 0.8 on the test set.
 
 Because the dataset is extremely imbalanced (1.8% melanoma vs 98.2% benign), plain accuracy is misleading, a trivial classifier that always predicts “benign” reaches 98.2% while learning nothing about melanomas
 
 Therefore we evaluate the model using AUC-ROC, which balances sensitivity (TPR) and specificity (TNR) and considers both classes. AUC-ROC is standard for imbalanced medical-imaging tasks. Accordingly, our goal is to maximize AUC-ROC on the test set.
+
+Also, this model is trained on Google Collab for faster training and larger GPU ram. Since my laptop does not have enough GPU ram.
 
 ## Environment Setup
 
@@ -48,7 +48,7 @@ conda install pytorch=2.1.1 torchvision=0.16.1 torchaudio pytorch-cuda=11.8 -c p
 conda install scikit-learn=1.3.2 matplotlib=3.7.2 seaborn=0.13.2 tqdm=4.66.5 pillow=10.4.0 pandas=2.0.3 numpy=1.24.3 -y
 ```
 
-### This installs
+#### This installs
 
 - Python: 3.8.19
 - PyTorch: 2.1.1 (CUDA 11.8 support)
@@ -61,6 +61,12 @@ conda install scikit-learn=1.3.2 matplotlib=3.7.2 seaborn=0.13.2 tqdm=4.66.5 pil
 - Pillow (PIL): 10.4.0
 - pandas: 2.0.3
 - numpy: 1.24.3
+
+### 6. Run the program
+
+```
+python3 train.py
+```
 
 ## Dataset Overview
 
@@ -104,7 +110,7 @@ We normalize images to ResNet-50’s ImageNet pretraining stats:
 
 ### Data splitting
 
-- Applying 80/10/10 split for train/validation/test, intentionally keeping the validation and test sets small to maximize training data and improve model performance.
+- Applying 80/10/10 split for train/validation/test, intentionally keeping the validation and test sets small to maximize training data and improve model performance. I have tried with smaller size of training set, but the result was not as good as 80/10/10.
 - Details of classes in dataset.
 
   |       | Normal | Melanoma |
@@ -243,7 +249,7 @@ For the Testing Sensitivity.
 0.7759
 ```
 
-Given the test set has only 59 melanoma cases, the model still identifies melanomas reliably, achieving 0.7758 (around 0.8) and consistent with our target.
+Given the test set has only 59 melanoma cases, the model still identifies melanomas reliably, achieving 0.7759 (around 0.8) and consistent with our target.
 
 ### 4. Training Figures: Training / Validation loss, accuracy and AUC ROC over the training epochs
 

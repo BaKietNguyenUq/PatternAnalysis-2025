@@ -57,6 +57,7 @@ def produce_evaluation_metrics(
 
 def plot_tsne_from_embeddings(
     embeddings: np.ndarray | torch.Tensor, 
+    test_pred: list,
     out_path: str = "testing_tsne_embeddings.png", 
     title: str = "t-SNE visualization of embeddings"
 ) -> None:
@@ -65,6 +66,7 @@ def plot_tsne_from_embeddings(
 
     Args:
         embeddings (np.ndarray | torch.Tensor): contain embeddings of dimension
+        test_pred (list): predicted labels for each sample.
         out_path (str): path to save the output image file
         title (str): figure title to display on the plot
     """
@@ -77,7 +79,7 @@ def plot_tsne_from_embeddings(
 
     # plot with a single color since no labels provided
     plt.figure(figsize=(8, 6))
-    sc = plt.scatter(X2[:, 0], X2[:, 1], s=10, alpha=0.8, c=range(len(X2)), cmap="cividis")
+    sc = plt.scatter(X2[:, 0], X2[:, 1], s=10, alpha=0.8, c=test_pred, cmap="cividis")
     plt.colorbar(sc)
     plt.title(title)
     plt.xlabel("t-SNE 1")
@@ -236,7 +238,7 @@ def results_siamese_network(
     # Metrics + visualizations
     produce_evaluation_metrics(test_pred, test_probs, test_true)
     plot_confusion_matrix(test_true, test_pred)
-    plot_tsne_from_embeddings(test_embeddings)
+    plot_tsne_from_embeddings(test_embeddings, test_pred)
     plot_roc_curve(test_true, test_probs)
     
     
