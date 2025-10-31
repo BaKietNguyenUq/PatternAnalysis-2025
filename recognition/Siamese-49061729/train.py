@@ -5,7 +5,6 @@ Training loop and utilities for a Siamese network on ISIC 2020
 Includes train/validate functions, metric plotting and the main entrypoint
 """
 
-import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -14,9 +13,6 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import numpy as np
 from sklearn.metrics import confusion_matrix, roc_auc_score, accuracy_score
 import matplotlib.pyplot as plt
-import seaborn as sns
-from tqdm import tqdm
-import logging
 from torch.utils.data import DataLoader
 from typing import Tuple
 

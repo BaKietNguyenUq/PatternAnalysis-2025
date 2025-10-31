@@ -5,8 +5,6 @@ Containing functions for predicting and evaluating the performance of a
 trained Siamese Network model. It includes functions for predictions, calculating metrics, and visualizing results.
 """
 
-
-import os
 import torch
 import torch.nn as nn
 import numpy as np
@@ -14,11 +12,9 @@ import seaborn as sns
 from sklearn.metrics import confusion_matrix, roc_auc_score, accuracy_score, roc_curve
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
-from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from typing import Tuple
-from train import validate
-from modules import TripletLoss, SiameseNetwork, get_config
+from modules import SiameseNetwork
 
 def produce_evaluation_metrics(
     test_pred: list,
