@@ -156,7 +156,7 @@ In this project, the Siamese model uses a ResNet-50 backbone as a shared feature
 
 For this model, we implement TripletLoss loss function. Tripletloss will take each triplet output and will calculate the loss via the following formula:
 
-`L = max(0, D(A,P) - D(A,N) + margin)` Where A = Anchor, P = Positive, N = Negative, D = Euclidean distance.
+`Loss = max(0, f(A,P) - f(A,N) + margin)` Where A = Anchor embedding, P = Positive embedding, N = Negative embedding, f = function that calculate Euclidean distance
 
 During training, we want the anchor close to the positive and make it far away from the negative.
 
@@ -176,7 +176,7 @@ We train the model with two goals at once: learn a good feature space and make c
 - Train batch size: 32.
 - Optimizer: Adam.
 - Initial learning rate: 0.001
-- Embedding dimension for Siamese network: 256.
+- Embedding dimension for Siamese network: 300.
 - Learning rate scheduler: ReduceLROnPlateau.
 - Using mixed precision means running some ops in float16/float8 and the rest in float32 to speed up training and use less GPU memory while keeping similar accuracy.
 - Using gradient clipping prevents exploding gradients by capping their size before the optimizer step.
@@ -275,10 +275,11 @@ Given the test set has only 59 melanoma cases, the model still identifies melano
 
 ## References
 
-1. ISIC 2020 Challenge: https://www.kaggle.com/datasets/nischaydnk/isic-2020-jpg-256x256-resized
-2. GeeksforGeeks. (2025, August 4). AUC ROC Curve in Machine Learning. https://www.geeksforgeeks.org/machine-learning/auc-roc-curve/
-3. Nag, R. (2022, November 19). A comprehensive guide to Siamese neural networks. Medium. https://medium.com/@rinkinag24/a-comprehensive-guide-to-siamese-neural-networks-3358658c0513
-4. Brata, M., & Zakia, I. (2024). ResNet-50 architecture for regression [Figure]. In Path Loss Estimation at Sub-6 GHz and Millimeter Wave Frequencies Using Fine-Tuning. ResearchGate. https://www.researchgate.net/figure/ResNet-50-architecture-for-regression_fig4_384281904
-5. TorchVision Team. (2025). resnet50 — Torchvision main documentation. PyTorch. https://docs.pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html
-6. Hey, A. (2024, November 3). Guide to gradient clipping in PyTorch. Biased-Algorithms (Medium). https://medium.com/biased-algorithms/guide-to-gradient-clipping-in-pytorch-f1db24ea08a2
-7. GeeksforGeeks. (2025, June 18). What is Mixed Precision Training? https://www.geeksforgeeks.org/deep-learning/what-is-mixed-precision-training/
+1. ISIC 2020 Challenge: https://www.kaggle.com/datasets/nischaydnk/isic-2020-jpg-256x256-resized/code
+2. Shakes. (2024). https://github.com/shakes76/PatternAnalysis-2024
+3. GeeksforGeeks. (2025, August 4). AUC ROC Curve in Machine Learning. https://www.geeksforgeeks.org/machine-learning/auc-roc-curve/
+4. Nag, R. (2022, November 19). A comprehensive guide to Siamese neural networks. Medium. https://medium.com/@rinkinag24/a-comprehensive-guide-to-siamese-neural-networks-3358658c0513
+5. Brata, M., & Zakia, I. (2024). ResNet-50 architecture for regression [Figure]. In Path Loss Estimation at Sub-6 GHz and Millimeter Wave Frequencies Using Fine-Tuning. ResearchGate. https://www.researchgate.net/figure/ResNet-50-architecture-for-regression_fig4_384281904
+6. TorchVision Team. (2025). resnet50 — Torchvision main documentation. PyTorch. https://docs.pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html
+7. Hey, A. (2024, November 3). Guide to gradient clipping in PyTorch. Biased-Algorithms (Medium). https://medium.com/biased-algorithms/guide-to-gradient-clipping-in-pytorch-f1db24ea08a2
+8. GeeksforGeeks. (2025, June 18). What is Mixed Precision Training? https://www.geeksforgeeks.org/deep-learning/what-is-mixed-precision-training/
